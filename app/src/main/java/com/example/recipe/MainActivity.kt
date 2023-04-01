@@ -43,9 +43,3 @@ fun RecipeApp() {
         }
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    RecipeApp()
-}

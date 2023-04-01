@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -24,7 +25,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
 import com.example.recipe.api.Recipe
+import com.example.recipe.api.RecipeResponse
 import com.example.recipe.api.RecipeService
+import com.example.recipe.data.getDataById
+import com.example.recipe.database.RecipeDao
+import com.example.recipe.database.RecipeDatabase
 import kotlinx.coroutines.launch
 
 @Composable
@@ -32,14 +37,12 @@ fun RecipePage(id: Int, navController: NavController) {
     val scope = rememberCoroutineScope()
     val recipe = remember { mutableStateOf<Recipe?>(null) }
     val isLoading = recipe.value == null
+    val recipeDatabase = RecipeDatabase.getDatabase(LocalContext.current.applicationContext)
+    val recipeDao : RecipeDao = recipeDatabase.recipeDao()
+    val IsConnected = remember { mutableStateOf(true) }
+
     LaunchedEffect(true) {
-        scope.launch {
-            try {
-                recipe.value = RecipeService().getRecipe(id)
-            } catch (e: Exception) {
-                Log.e("RecipePage", "Error while getting recipe by id", e)
-            }
-        }
+        getDataById(id, recipe, IsConnected, scope, recipeDao)
     }
     if (isLoading) {
         Box(

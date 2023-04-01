@@ -1,8 +1,9 @@
 package com.example.recipe
 
+import android.annotation.SuppressLint
+import android.database.sqlite.SQLiteDatabase.*
 import android.util.Log
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,34 +19,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.room.TypeConverters
 import coil.compose.rememberImagePainter
+import com.example.recipe.api.Recipe
 import com.example.recipe.api.RecipeResponse
 import com.example.recipe.api.RecipeService
-import kotlinx.coroutines.launch
+import com.example.recipe.data.getAllData
+import com.example.recipe.data.getSearch
+import com.example.recipe.database.ListToStringConverter
+import com.example.recipe.database.RecipeDao
+import com.example.recipe.database.RecipeDatabase
+import com.example.recipe.database.RecipeDb
+import kotlinx.coroutines.*
 
 @Composable
+@TypeConverters(ListToStringConverter::class)
 fun Home(navController: NavController) {
+    val recipeDatabase = RecipeDatabase.getDatabase(LocalContext.current.applicationContext)
+    val recipeDao : RecipeDao = recipeDatabase.recipeDao()
     val scope = rememberCoroutineScope()
     val recipes = remember { mutableStateOf<RecipeResponse?>(null) }
     val searchText = remember { mutableStateOf("") }
     val isLoading = recipes.value == null
     val selectedCategory = remember { mutableStateOf("") }
+    val IsConnected = remember { mutableStateOf(true) }
 
     LaunchedEffect(true) {
-        scope.launch {
-            try {
-                recipes.value = RecipeService().getRecipes()
-            } catch (e: Exception) {
-                Log.e("Home", "Error while getting recipes", e)
-            }
-        }
+        getAllData(
+            recipes = recipes,
+            IsConnected = IsConnected,
+            scope = scope,
+            recipeDao = recipeDao
+        )
     }
-
     Column() {
         Row(
             modifier = Modifier
@@ -61,76 +72,98 @@ fun Home(navController: NavController) {
                 onValueChange = { searchText.value = it },
                 label = {
                     Text(
-                        text = "Search recipes...",
+                        text = "Searching...",
                         style = MaterialTheme.typography.body1.merge(TextStyle(fontSize = 18.sp))
                     )
                 },
-                modifier = Modifier.weight(1f).padding(8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(8.dp),
+
                 trailingIcon = {
-                    Icon(
-                        Icons.Filled.Search,
-                        contentDescription = "Search",
-                        tint = LocalContentColor.current.copy(alpha = ContentAlpha.medium)
-                    )
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                recipes.value = RecipeService().searchRecipes(searchText.value)
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
+                    searchButton("Search") {
+                        selectedCategory.value = searchText.value
+                        getSearch(
+                            searchText = selectedCategory.value,
+                            recipes = recipes,
+                            IsConnected = IsConnected,
+                            scope = scope,
+                            recipeDao = recipeDao
+                        )
                     }
                 }
             )
         }
-        LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+
+        LazyRow(modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)) {
             item {
                 CategoryButton("All", selectedCategory.value == "All") {
                     selectedCategory.value = "All"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
                 CategoryButton("Beef", selectedCategory.value == "Beef") {
                     selectedCategory.value = "Beef"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
                 CategoryButton("Chicken", selectedCategory.value == "Chicken") {
                     selectedCategory.value = "Chicken"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
                 CategoryButton("Carrot", selectedCategory.value == "Carrot") {
                     selectedCategory.value = "Carrot"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
                 CategoryButton("Soup", selectedCategory.value == "Soup") {
                     selectedCategory.value = "Soup"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
                 CategoryButton("French", selectedCategory.value == "French") {
                     selectedCategory.value = "French"
-                    scope.launch {
-                        recipes.value = RecipeService().searchRecipes(selectedCategory.value)
-                    }
+                    getSearch(
+                        searchText = selectedCategory.value,
+                        recipes = recipes,
+                        IsConnected = IsConnected,
+                        scope = scope,
+                        recipeDao = recipeDao
+                    )
                 }
+
             }
         }
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            loader()
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -170,7 +203,9 @@ fun Home(navController: NavController) {
                         Text(
                             text = "No products found",
                             style = MaterialTheme.typography.h6,
-                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
                         )
                     }
                 }
@@ -178,7 +213,32 @@ fun Home(navController: NavController) {
         }
     }
 }
-
+@Composable
+fun loader(){
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+@Composable
+fun searchButton(
+    category: String,
+    onSelected: (String) -> Unit
+)
+{
+    Icon(
+        Icons.Filled.Search,
+        contentDescription = "Search",
+        tint = LocalContentColor.current.copy(alpha = ContentAlpha.medium)
+    )
+    IconButton(
+        onClick = { onSelected(category) }
+    ) {
+        Icon(Icons.Filled.Search, contentDescription = "Search")
+    }
+}
 @Composable
 fun CategoryButton(
     category: String,
