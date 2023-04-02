@@ -14,8 +14,9 @@ class RecipeService {
         private const val URL = "https://food2fork.ca/api"
     }
 
-    suspend fun getRecipes(): RecipeResponse {
-        val response = client.get("$URL/recipe/search/?page=2&query=beef%20carrot%20potato%20onion") {
+    suspend fun getRecipes(page: Int): RecipeResponse {
+        val query = "beef%20carrot%20potato%20onion"
+        val response = client.get("$URL/recipe/search/?page=$page&query=$query") {
             header("Authorization", TOKEN)
         }
         return response.body()
@@ -30,9 +31,9 @@ class RecipeService {
 
     suspend fun searchRecipes(query: String): RecipeResponse? {
         if (query == "All"){
-            return getRecipes()
+            return getRecipes(2)
         }
-        val response = client.get("$URL/recipe/search/?page=2&query=$query") {
+        val response = client.get("$URL/recipe/search/?query=$query") {
             header("Authorization", TOKEN)
         }
         return if (response.status.isSuccess()) response.body() else null

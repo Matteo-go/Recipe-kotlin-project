@@ -21,7 +21,7 @@ fun getSearch(
     scope.launch {
         try {
             if (searchText == "All") {
-                recipes.value = RecipeService().getRecipes()
+                recipes.value = RecipeService().getRecipes(2)
             } else {
                 recipes.value = RecipeService().searchRecipes(searchText)
             }
@@ -32,7 +32,7 @@ fun getSearch(
         if (!IsConnected.value) {
             var recipeDbList = listOf<RecipeDb>()
             if(searchText == "All"){
-                recipeDbList = recipeDao.getAll()
+                recipeDbList = recipeDao.getAll(30, 0)
             } else {
                 recipeDbList = recipeDao.search(searchText)
             }

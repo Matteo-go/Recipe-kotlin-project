@@ -12,19 +12,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@SuppressLint("CoroutineCreationDuringComposition")
 fun getAllData(
     recipes: MutableState<RecipeResponse?>,
     IsConnected: MutableState<Boolean>,
     scope: CoroutineScope,
-    recipeDao: RecipeDao
+    recipeDao: RecipeDao,
+    page: Int,
+    hasMoreResults: MutableState<Boolean>
 ){
     scope.launch {
         try {
-            recipes.value = RecipeService().getRecipes()
+            var newResult = RecipeService().getRecipes(page)
+            var oldRecipeList = recipes.value?.results ?: emptyList()
+            var allRecipeList = oldRecipeList + newResult.results
+            recipes.value = RecipeResponse(
+                newResult.count,
+                newResult.next,
+                allRecipeList.distinct()
+            )
             IsConnected.value = true
             withContext(Dispatchers.IO) {
-                for (recipe in recipes.value!!.results) {
+                for (recipe in allRecipeList.distinct()) {
                     val recipeDb = RecipeDb(
                         recipe.pk,
                         recipe.title,
@@ -42,12 +50,17 @@ fun getAllData(
                     recipeDao.insert(recipeDb)
                 }
             }
+            if (oldRecipeList.distinct().size == allRecipeList.distinct().size) {
+                hasMoreResults.value = false
+            }
         } catch (e: Exception) {
             IsConnected.value = false
         }
+        var offset = (page - 1) * 30
         if (!IsConnected.value) {
-            val recipeDbList = recipeDao.getAll()
-            recipes.value = RecipeResponse(0, "", recipeDbList.map { recipeDb ->
+            val recipeDbList = recipeDao.getAll(30, offset)
+            val oldRecipeList = recipes.value?.results ?: emptyList()
+            val allRecipeList = oldRecipeList + recipeDbList.map { recipeDb ->
                 Recipe(
                     recipeDb.pk,
                     recipeDb.title,
@@ -62,7 +75,11 @@ fun getAllData(
                     recipeDb.longDateAdded,
                     recipeDb.longDateUpdated
                 )
-            })
+            }
+            recipes.value = RecipeResponse(0, "", allRecipeList.distinct())
+            if( oldRecipeList.distinct().size == allRecipeList.distinct().size){
+                hasMoreResults.value = false
+            }
         }
     }
 }

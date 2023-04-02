@@ -1,9 +1,8 @@
 package com.example.recipe
 
-import android.annotation.SuppressLint
 import android.database.sqlite.SQLiteDatabase.*
-import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,15 +25,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.room.TypeConverters
 import coil.compose.rememberImagePainter
-import com.example.recipe.api.Recipe
 import com.example.recipe.api.RecipeResponse
-import com.example.recipe.api.RecipeService
 import com.example.recipe.data.getAllData
 import com.example.recipe.data.getSearch
 import com.example.recipe.database.ListToStringConverter
 import com.example.recipe.database.RecipeDao
 import com.example.recipe.database.RecipeDatabase
-import com.example.recipe.database.RecipeDb
 import kotlinx.coroutines.*
 
 @Composable
@@ -48,16 +44,35 @@ fun Home(navController: NavController) {
     val isLoading = recipes.value == null
     val selectedCategory = remember { mutableStateOf("") }
     val IsConnected = remember { mutableStateOf(true) }
+    val CurrentPage = remember { mutableStateOf(1) }
+    var hasMoreResults = remember { mutableStateOf(true) }
 
     LaunchedEffect(true) {
         getAllData(
             recipes = recipes,
             IsConnected = IsConnected,
             scope = scope,
-            recipeDao = recipeDao
+            recipeDao = recipeDao,
+            page = CurrentPage.value,
+            hasMoreResults = hasMoreResults
         )
     }
     Column() {
+        if(!IsConnected.value){
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .background(Color.Red),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "you don't have an internet connection",
+                    color = Color.White,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -108,6 +123,7 @@ fun Home(navController: NavController) {
                         scope = scope,
                         recipeDao = recipeDao
                     )
+                    hasMoreResults.value = true
                 }
                 CategoryButton("Beef", selectedCategory.value == "Beef") {
                     selectedCategory.value = "Beef"
@@ -165,51 +181,16 @@ fun Home(navController: NavController) {
         if (isLoading) {
             loader()
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                if (recipes.value?.results?.isNotEmpty() == true) {
-                    items(recipes.value?.results ?: emptyList()) { recipe ->
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            backgroundColor = Color.White,
-                            elevation = 4.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
-                                .clickable { navController.navigate("recipe/${recipe.pk}") }
-                        ) {
-                            Column(Modifier.padding(16.dp)) {
-                                Image(
-                                    painter = rememberImagePainter(recipe.featuredImage),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(200.dp)
-                                )
-
-                                Text(
-                                    text = recipe.title,
-                                    style = MaterialTheme.typography.h6,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    item {
-                        Text(
-                            text = "No products found",
-                            style = MaterialTheme.typography.h6,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        )
-                    }
-                }
-            }
+            RecipeList(
+                recipes = recipes,
+                navController = navController,
+                scope = scope,
+                recipeDao = recipeDao,
+                IsConnected = IsConnected,
+                CurrentPage = CurrentPage,
+                hasMoreResults = hasMoreResults,
+                selectedCategory = selectedCategory
+            )
         }
     }
 }
@@ -266,3 +247,78 @@ fun CategoryButton(
         )
     }
 }
+
+@Composable
+fun RecipeList(
+    recipes: MutableState<RecipeResponse?>,
+    navController: NavController,
+    scope: CoroutineScope,
+    recipeDao: RecipeDao,
+    IsConnected: MutableState<Boolean>,
+    CurrentPage: MutableState<Int>,
+    hasMoreResults: MutableState<Boolean>,
+    selectedCategory: MutableState<String>
+){
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+    ) {
+        if (recipes.value?.results?.isNotEmpty() == true) {
+            items(recipes.value?.results ?: emptyList()) { recipe ->
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    backgroundColor = Color.White,
+                    elevation = 4.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .clickable { navController.navigate("recipe/${recipe.pk}") }
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Image(
+                            painter = rememberImagePainter(recipe.featuredImage),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+
+                        Text(
+                            text = recipe.title,
+                            style = MaterialTheme.typography.h6,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+            if ((selectedCategory.value == "All" || selectedCategory.value == "") && hasMoreResults.value) {
+                item {
+                    Button(
+                        onClick = {
+                            getAllData( recipes, IsConnected, scope, recipeDao, CurrentPage.value + 1, hasMoreResults)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Load More")
+                    }
+                }
+            } else {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Sorry we haven't more results....",
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

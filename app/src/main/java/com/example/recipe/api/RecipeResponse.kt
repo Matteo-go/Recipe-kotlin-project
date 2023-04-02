@@ -10,8 +10,15 @@ data class RecipeResponse(
     val count: Int,
     @SerialName("next")
     val next: String,
-    //@SerialName("previous")
-    //val previous: String,
     @SerialName("results")
     val results: List<Recipe>
-)
+) {
+    operator fun plus(other: RecipeResponse): RecipeResponse {
+        return RecipeResponse(
+            count = count + other.count,
+            next = other.next,
+            //previous = other.previous,
+            results = results + other.results
+        )
+    }
+}
